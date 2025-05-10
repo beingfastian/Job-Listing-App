@@ -4,11 +4,16 @@ import { useState, useEffect } from 'react';
 import JobService from '@/services/api';
 
 export default function JobFilter({ filters, onFilterChange }) {
-  // Static predefined filter options
-  const locationOptions = ["Karachi", "Lahore", "Islamabad", "Multan"];
-  const jobTypeOptions = ["Full Time", "Part Time", "Contract", "Remote", "Internship"];
-  const [companyOptions, setCompanyOptions] = useState([]);
+  // Predefined location options
+  const locationOptions = ["Karachi", "Lahore", "Islamabad", "Multan", "Munich", "Berlin", "Remote"];
   
+  // Predefined job type options
+  const jobTypeOptions = [
+    "Full-time", "Part-time", "Contract", "Remote", "Internship", 
+    "Health", "Life", "Pension", "Reinsurance", "Consulting", "Risk"
+  ];
+  
+  const [companyOptions, setCompanyOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [localFilters, setLocalFilters] = useState({
@@ -33,18 +38,20 @@ export default function JobFilter({ filters, onFilterChange }) {
     setActiveFilterCount(count);
   }, [localFilters]);
 
-  // Attempt to fetch company options from API
+  // Fetch company options from API
   useEffect(() => {
     const fetchCompanyOptions = async () => {
       try {
         setLoading(true);
         const stats = await JobService.getJobStats();
         if (stats?.success && stats?.companies) {
+          // Extract company names and sort alphabetically
           const newCompanies = stats.companies
             .map(item => item.company)
-            .filter(company => company && !companyOptions.includes(company));
+            .filter(company => company && company !== 'N/A' && company !== 'null')
+            .sort((a, b) => a.localeCompare(b));
   
-          setCompanyOptions(prev => [...prev, ...newCompanies]);
+          setCompanyOptions(newCompanies);
         }
       } catch (error) {
         console.error('Error loading company options:', error);
@@ -56,7 +63,6 @@ export default function JobFilter({ filters, onFilterChange }) {
     fetchCompanyOptions();
   }, []);
   
-
   // Handle input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -165,75 +171,74 @@ export default function JobFilter({ filters, onFilterChange }) {
             
             {/* Location Filter */}
             <div className="space-y-2">
-  <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-    Location
-  </label>
-  <div className="relative">
-    <select
-      id="location"
-      name="location"
-      value={localFilters.location}
-      onChange={handleInputChange}
-      className="block w-full rounded-md border-gray-300 pl-3 pr-10 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-    >
-      <option value="">All Locations</option>
-      {locationOptions.map((location, index) => (
-        <option key={`location-${index}`} value={location}>{location}</option>
-      ))}
-    </select>
-    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-      </svg>
-    </div>
-  </div>
-  {localFilters.location && (
-    <div className="flex items-center mt-1 text-sm text-blue-600">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-      </svg>
-      <span>Filtering by location</span>
-    </div>
-  )}
-</div>
-
+              <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                Location
+              </label>
+              <div className="relative">
+                <select
+                  id="location"
+                  name="location"
+                  value={localFilters.location}
+                  onChange={handleInputChange}
+                  className="block w-full rounded-md border-gray-300 pl-3 pr-10 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                >
+                  <option value="">All Locations</option>
+                  {locationOptions.map((location, index) => (
+                    <option key={`location-${index}`} value={location}>{location}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+              {localFilters.location && (
+                <div className="flex items-center mt-1 text-sm text-blue-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span>Filtering by location</span>
+                </div>
+              )}
+            </div>
             
             {/* Job Type Filter */}
             <div className="space-y-2">
-  <label htmlFor="job_type" className="block text-sm font-medium text-gray-700">
-    Job Type
-  </label>
-  <div className="relative">
-    <select
-      id="job_type"
-      name="job_type"
-      value={localFilters.job_type}
-      onChange={handleInputChange}
-      className="block w-full rounded-md border-gray-300 pl-3 pr-10 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-    >
-      <option value="">All Job Types</option>
-      {jobTypeOptions.map((type, index) => (
-        <option key={`job-type-${index}`} value={type}>{type}</option>
-      ))}
-    </select>
-    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-      </svg>
-    </div>
-  </div>
-  {localFilters.job_type && (
-    <div className="flex items-center mt-1 text-sm text-blue-600">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-      </svg>
-      <span>Filtering by job type</span>
-    </div>
-  )}
-</div>
-</div>
+              <label htmlFor="job_type" className="block text-sm font-medium text-gray-700">
+                Job Type
+              </label>
+              <div className="relative">
+                <select
+                  id="job_type"
+                  name="job_type"
+                  value={localFilters.job_type}
+                  onChange={handleInputChange}
+                  className="block w-full rounded-md border-gray-300 pl-3 pr-10 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                >
+                  <option value="">All Job Types</option>
+                  {jobTypeOptions.map((type, index) => (
+                    <option key={`job-type-${index}`} value={type}>{type}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+              {localFilters.job_type && (
+                <div className="flex items-center mt-1 text-sm text-blue-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span>Filtering by job type</span>
+                </div>
+              )}
+            </div>
+          </div>
 
-<div className="mt-6 flex flex-col sm:flex-row justify-end gap-3">
+          <div className="mt-6 flex flex-col sm:flex-row justify-end gap-3">
             <button
               type="button"
               onClick={clearFilters}
@@ -263,5 +268,5 @@ export default function JobFilter({ filters, onFilterChange }) {
         </div>
       </div>
     </div>
-    );
-  }
+  );
+}

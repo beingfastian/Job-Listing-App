@@ -9,6 +9,13 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URI', 'mysql://honey:12345@localhost/job_listings')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    # MongoDB configuration (for user jobs)
+    # When running locally, use localhost instead of mongo hostname
+    MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/job_listings')
+    
+    # Docker environment flag
+    DOCKER_ENV = os.getenv('DOCKER_ENV', 'false').lower() == 'true'
+    
     # Application configuration
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
     

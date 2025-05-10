@@ -32,10 +32,12 @@ export const JobService = {
     }
   },
 
-  // Add a new job
+  // Add a new job (always adds to MongoDB)
   addJob: async (jobData) => {
     try {
-      const response = await apiClient.post('/jobs', jobData);
+      // Ensure source is set to manual for MongoDB storage
+      const data = { ...jobData, source: 'manual' };
+      const response = await apiClient.post('/jobs', data);
       return response.data;
     } catch (error) {
       console.error('Error adding job:', error);
@@ -43,13 +45,54 @@ export const JobService = {
     }
   },
 
-  // Delete a job
+  // Delete a job (works with both MongoDB and MySQL IDs)
   deleteJob: async (jobId) => {
     try {
-      const response = await apiClient.delete(`/jobs/${jobId}`);
+      console.log(`Deleting job with ID: ${jobId}`);
+      // Check if this is a MongoDB ObjectId (24-character hex string)
+      const isMongoId = typeof jobId === 'string' && jobId.match(/^[0-9a-f]{24}$/i);
+      
+      // Make sure the ID is properly encoded in the URL
+      const encodedId = encodeURIComponent(jobId);
+      
+      const response = await apiClient.delete(`/jobs/${encodedId}`);
       return response.data;
     } catch (error) {
       console.error('Error deleting job:', error);
+      console.error('Error details:', error.response ? error.response.data : 'No response data');
+      throw error;
+    }
+  },
+
+  // Get scraper status
+  getScraperStatus: async () => {
+    try {
+      const response = await apiClient.get('/scraper/status');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching scraper status:', error);
+      throw error;
+    }
+  },
+
+  // Run the scraper manually
+  runScraper: async () => {
+    try {
+      const response = await apiClient.post('/scraper/run');
+      return response.data;
+    } catch (error) {
+      console.error('Error running scraper:', error);
+      throw error;
+    }
+  },
+  
+  // Check database health
+  checkDatabaseHealth: async () => {
+    try {
+      const response = await apiClient.get('/health/databases');
+      return response.data;
+    } catch (error) {
+      console.error('Error checking database health:', error);
       throw error;
     }
   }

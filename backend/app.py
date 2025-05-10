@@ -4,6 +4,7 @@ import logging
 import os
 from config import Config
 from models import db, Job
+from mongo_models import mongo
 from routes import api
 from scraper.bot import scrape_jobs
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -30,17 +31,48 @@ def create_app():
     
     app.config.from_object(Config)
     
-    # Initialize extensions
+    # Initialize MySQL extension
     db.init_app(app)
     CORS(app)
     
     # Register blueprints
     app.register_blueprint(api, url_prefix='/api')
     
-    # Create database tables if they don't exist
+    # Create MySQL database tables if they don't exist
     with app.app_context():
         db.create_all()
-        logger.info("Database tables created")
+        logger.info("MySQL database tables created")
+    
+    # Initialize MongoDB with proper error handling
+    try:
+        # Print the MongoDB URI for debugging (with password masked if present)
+        mongo_uri = app.config.get('MONGO_URI', '')
+        masked_uri = mongo_uri
+        if '@' in mongo_uri:
+            protocol_part = mongo_uri.split('://')[0]
+            auth_part = mongo_uri.split('://')[1].split('@')[0]
+            server_part = mongo_uri.split('@')[1]
+            masked_uri = f"{protocol_part}://***:***@{server_part}"
+        logger.info(f"Attempting to connect to MongoDB with URI: {masked_uri}")
+        
+        mongo.init_app(app)
+        
+        with app.app_context():
+            # Test MongoDB connection
+            try:
+                mongo.db.command('ping')
+                logger.info("MongoDB connection successful!")
+                
+                # Create indexes only if connection is successful
+                mongo.db.user_jobs.create_index([("company", "text"), ("location", "text"), ("title", "text")])
+                logger.info("MongoDB indexes created successfully")
+            except Exception as e:
+                logger.error(f"MongoDB operation failed: {str(e)}")
+                logger.warning("Application will run with limited MongoDB functionality")
+    except Exception as e:
+        logger.error(f"Failed to initialize MongoDB: {str(e)}")
+        logger.warning("Application will run without MongoDB functionality")
+        logger.info("Check if MongoDB is running and update your MONGO_URI in config.py or .env file")
     
     return app
 

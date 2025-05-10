@@ -1,0 +1,86 @@
+services:
+  # Backend Flask API service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: job-listings-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URI=mysql://honey:12345@mysql/job_listings
+      - MONGO_URI=mongodb://mongo:27017/job_listings
+      - SECRET_KEY=your-secret-key-here
+      - DOCKER_ENV=true
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    networks:
+      - job-listings-network
+
+  # MySQL database for scraped jobs
+  mysql:
+    build:
+      context: .
+      dockerfile: mysql/Dockerfile
+    container_name: job-listings-mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - job-listings-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "honey", "-p12345"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # MongoDB database for user-added jobs
+  mongo:
+    build:
+      context: .
+      dockerfile: mongo/Dockerfile
+    container_name: job-listings-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - job-listings-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # Frontend Next.js application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: job-listings-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api
+    depends_on:
+      - backend
+    networks:
+      - job-listings-network
+
+networks:
+  job-listings-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  mongo-data:

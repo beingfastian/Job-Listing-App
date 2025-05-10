@@ -5,6 +5,7 @@ import { useState } from 'react';
 export default function JobItem({ job, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
   
   // Format date for display
   const formatDate = (dateString) => {
@@ -17,16 +18,36 @@ export default function JobItem({ job, onDelete }) {
   };
 
   // Handle delete button click
-  const handleDeleteClick = () => {
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    
     if (confirmDelete) {
-      onDelete(job.id);
-      setConfirmDelete(false);
+      try {
+        // Clear any previous errors
+        setDeleteError(null);
+        
+        // Make sure we have a valid ID
+        if (!job.id) {
+          setDeleteError("Missing job ID");
+          return;
+        }
+        
+        console.log(`Attempting to delete job with ID: ${job.id}`);
+        onDelete(job.id);
+        setConfirmDelete(false);
+      } catch (error) {
+        console.error("Error in delete handler:", error);
+        setDeleteError("Failed to delete job");
+      }
     } else {
       setConfirmDelete(true);
       // Auto-reset confirmation after 3 seconds
       setTimeout(() => setConfirmDelete(false), 3000);
     }
   };
+
+  // Determine database source - MongoDB IDs are 24-character hex strings
+  const isMongoDBJob = typeof job.id === 'string' && job.id.match(/^[0-9a-f]{24}$/i);
 
   return (
     <div className="border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 bg-white overflow-hidden">
@@ -47,15 +68,15 @@ export default function JobItem({ job, onDelete }) {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            {job.source === 'scraped' && (
+            {/* Show badge based on data source */}
+            {job.source === 'scraped' ? (
               <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Scraped</span>
+            ) : (
+              <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Manual</span>
             )}
             <span className="text-sm text-gray-500">{formatDate(job.posting_date)}</span>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteClick();
-              }}
+              onClick={handleDeleteClick}
               className={`ml-2 p-1 rounded-full ${
                 confirmDelete ? 'bg-red-100 text-red-600' : 'text-gray-400 hover:text-red-500'
               }`}
@@ -68,19 +89,38 @@ export default function JobItem({ job, onDelete }) {
           </div>
         </div>
         
-        {job.job_type && (
-          <div className="mt-2">
+        {/* Job metadata */}
+        <div className="mt-2 flex flex-wrap gap-2">
+          {job.job_type && (
             <span className="inline-block bg-gray-100 rounded-full px-3 py-1 text-xs font-semibold text-gray-700">
               {job.job_type}
             </span>
-            {job.salary && (
-              <span className="inline-block bg-green-100 rounded-full px-3 py-1 text-xs font-semibold text-green-700 ml-2">
-                {job.salary}
-              </span>
-            )}
+          )}
+          {job.salary && (
+            <span className="inline-block bg-green-100 rounded-full px-3 py-1 text-xs font-semibold text-green-700">
+              {job.salary}
+            </span>
+          )}
+          {job.experience_level && (
+            <span className="inline-block bg-purple-100 rounded-full px-3 py-1 text-xs font-semibold text-purple-700">
+              {job.experience_level}
+            </span>
+          )}
+          {isMongoDBJob && (
+            <span className="inline-block bg-yellow-100 rounded-full px-3 py-1 text-xs font-semibold text-yellow-700">
+              MongoDB
+            </span>
+          )}
+        </div>
+        
+        {/* Display delete error if any */}
+        {deleteError && (
+          <div className="mt-2 p-2 text-sm text-red-700 bg-red-100 rounded">
+            Error: {deleteError}
           </div>
         )}
         
+        {/* Expanded content */}
         {expanded && (
           <div className="mt-4 border-t pt-4">
             {job.description ? (
@@ -107,6 +147,14 @@ export default function JobItem({ job, onDelete }) {
                 </a>
               </div>
             )}
+            
+            {/* Show additional metadata in expanded view */}
+            <div className="mt-4 pt-3 border-t border-gray-200 text-sm text-gray-500">
+              <p>Source: {job.source}</p>
+              <p>ID: {job.id}</p>
+              <p>Created: {formatDate(job.created_at)}</p>
+              <p>Last Updated: {formatDate(job.updated_at)}</p>
+            </div>
           </div>
         )}
       </div>

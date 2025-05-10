@@ -13,10 +13,12 @@ export default function AddJobForm({ onJobAdded }) {
     posting_date: new Date().toISOString().split('T')[0],
     url: '',
     salary: '',
-    job_type: 'Full-time'
+    job_type: 'Full-time',
+    experience_level: 'Entry Level'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,12 +29,30 @@ export default function AddJobForm({ onJobAdded }) {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
+    setSuccess(null);
 
     try {
-      const response = await JobService.addJob(formData);
+      // Ensure all data is properly formatted - especially dates
+      // MongoDB has trouble with date objects, so send as strings
+      const jobData = {
+        ...formData,
+        // Make sure posting_date is a string (already should be from the date input)
+        posting_date: formData.posting_date,
+        // Explicitly set source to manual for MongoDB
+        source: 'manual'
+      };
+      
+      console.log("Submitting job data:", jobData);
+      
+      const response = await JobService.addJob(jobData);
+      
+      console.log("Response:", response);
+      
       if (response.success) {
+        setSuccess('Job added successfully!');
         onJobAdded(response.job);
-        setIsOpen(false);
+        
+        // Reset form after successful submission
         setFormData({
           title: '',
           company: '',
@@ -41,12 +61,20 @@ export default function AddJobForm({ onJobAdded }) {
           posting_date: new Date().toISOString().split('T')[0],
           url: '',
           salary: '',
-          job_type: 'Full-time'
+          job_type: 'Full-time',
+          experience_level: 'Entry Level'
         });
+        
+        // Close form after 1.5 seconds
+        setTimeout(() => {
+          setIsOpen(false);
+          setSuccess(null);
+        }, 1500);
       } else {
         setError(response.message || 'Failed to add job');
       }
     } catch (err) {
+      console.error("Error details:", err);
       setError('Error adding job: ' + (err.message || 'Unknown error'));
     } finally {
       setIsSubmitting(false);
@@ -79,6 +107,12 @@ export default function AddJobForm({ onJobAdded }) {
           {error && (
             <div className="bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg mb-6">
               {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="bg-green-100 border border-green-300 text-green-800 px-4 py-3 rounded-lg mb-6">
+              {success}
             </div>
           )}
 
@@ -120,6 +154,22 @@ export default function AddJobForm({ onJobAdded }) {
                   <option>Contract</option>
                   <option>Internship</option>
                   <option>Remote</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="experience_level" className="block text-sm font-medium text-gray-700 mb-1">Experience Level</label>
+                <select
+                  id="experience_level"
+                  name="experience_level"
+                  value={formData.experience_level}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none transition duration-200"
+                >
+                  <option>Entry Level</option>
+                  <option>Mid Level</option>
+                  <option>Senior</option>
+                  <option>Executive</option>
                 </select>
               </div>
             </div>

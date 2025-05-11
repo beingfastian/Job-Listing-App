@@ -1,25 +1,40 @@
-FROM node:18-alpine
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files first for better layer caching
-COPY package.json package-lock.json* ./
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
-# Install dependencies with cache optimization
-RUN npm ci --only=production && \
-    # Create a .next directory with proper permissions
-    mkdir -p .next && \
-    # Add runtime dependencies globally to reduce layers
-    npm install -g next@13 react@18 react-dom@18
+# Install dependencies
+RUN npm ci
 
-# Copy application code
+# Copy source code
 COPY . .
+
+# Set API URL environment variable
+ARG NEXT_PUBLIC_API_URL=http://backend:5000/api
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 # Build the application
 RUN npm run build
 
-# Expose the port
+# Production image
+FROM node:18-alpine AS runner
+
+WORKDIR /app
+
+# Set to production environment
+ENV NODE_ENV=production
+
+# Copy built application from builder stage
+COPY --from=builder /app/next.config.mjs ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+
+# Expose port
 EXPOSE 3000
 
-# Start the application
+# Run the application
 CMD ["npm", "start"]

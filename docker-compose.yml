@@ -1,86 +1,78 @@
+version: '3.8'
+
 services:
-  # Backend Flask API service
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: job-listings-backend
-    restart: always
-    ports:
-      - "5000:5000"
-    environment:
-      - DATABASE_URI=mysql://honey:12345@mysql/job_listings
-      - MONGO_URI=mongodb://mongo:27017/job_listings
-      - SECRET_KEY=your-secret-key-here
-      - DOCKER_ENV=true
-    depends_on:
-      mysql:
-        condition: service_healthy
-      mongo:
-        condition: service_healthy
-    networks:
-      - job-listings-network
-
-  # MySQL database for scraped jobs
-  mysql:
-    build:
-      context: .
-      dockerfile: mysql/Dockerfile
-    container_name: job-listings-mysql
-    restart: always
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-    networks:
-      - job-listings-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "honey", "-p12345"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-
-  # MongoDB database for user-added jobs
+  # MongoDB service
   mongo:
     build:
-      context: .
-      dockerfile: mongo/Dockerfile
-    container_name: job-listings-mongo
-    restart: always
+      context: ./mongo
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=job_listings
     ports:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
     networks:
-      - job-listings-network
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
+      - app-network
 
-  # Frontend Next.js application
+  # MySQL service
+  mysql:
+    build:
+      context: ./mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=job_listings
+      - MYSQL_USER=honey
+      - MYSQL_PASSWORD=12345
+      - MYSQL_ROOT_PASSWORD=root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - app-network
+
+  # Backend service
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      - DOCKER_ENV=true
+      - DATABASE_URI=mysql://honey:12345@mysql/job_listings
+      - MONGO_URI=mongodb://mongo:27017/job_listings
+      - SCRAPER_TEST_INTERVAL=15
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+      - mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/api/health/databases"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Frontend service
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    container_name: job-listings-frontend
-    restart: always
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:5000/api
+    restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:5000/api
     depends_on:
       - backend
     networks:
-      - job-listings-network
+      - app-network
 
 networks:
-  job-listings-network:
+  app-network:
     driver: bridge
 
 volumes:
-  mysql-data:
   mongo-data:
+  mysql-data:

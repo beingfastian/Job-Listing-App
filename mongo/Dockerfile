@@ -1,12 +1,16 @@
-FROM mongo:6.0-focal
+FROM mongo:5.0
 
-# Add health check for faster service availability detection
-HEALTHCHECK --interval=5s --timeout=3s --retries=3 CMD mongosh --eval "db.adminCommand('ping')" || exit 1
+# Add MongoDB configuration file if needed
+# COPY mongod.conf /etc/mongod.conf
 
-# Optimize for faster startup and lower memory usage
-RUN echo "mongod --wiredTigerCacheSizeGB=0.25 --bind_ip_all" > /usr/local/bin/docker-entrypoint-initdb.d
+# Set environment variables (can be overridden in docker-compose)
+ENV MONGO_INITDB_DATABASE=job_listings
 
-# Expose MongoDB port
+# Create directory for data
+RUN mkdir -p /data/db && chown -R mongodb:mongodb /data/db
+
+# Expose the default MongoDB port
 EXPOSE 27017
 
-CMD ["mongod"]
+# Use the default CMD from the base image
+# CMD ["mongod"]

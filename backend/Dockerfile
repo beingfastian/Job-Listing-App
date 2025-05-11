@@ -1,55 +1,46 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install Chrome and dependencies in optimized layers
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies (Chrome and chromedriver for Selenium)
+RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     unzip \
-    default-libmysqlclient-dev \
-    pkg-config \
-    gcc \
-    build-essential \
-    # Chrome dependencies - minimal set
-    libnss3 \
     libglib2.0-0 \
-    libx11-xcb1 \
-    libxcb-dri3-0 \
-    libxss1 \
-    libgbm1 \
-    libasound2 \
+    libnss3 \
+    libfontconfig1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Chrome and ChromeDriver in a single layer
-RUN wget -q -O chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+# Install Chrome
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends ./chrome.deb \
-    && rm chrome.deb \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && CHROME_DRIVER_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d. -f1) \
-    && CHROME_DRIVER_URL=$(wget -qO- "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_DRIVER_VERSION}") \
-    && wget -q --no-verbose -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${CHROME_DRIVER_URL}/chromedriver_linux64.zip" \
-    && unzip /tmp/chromedriver.zip -d /usr/local/bin/ \
-    && rm /tmp/chromedriver.zip \
+    && apt-get install -y google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ChromeDriver
+RUN CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d '.' -f 1) \
+    && CHROMEDRIVER_VERSION=$(wget -qO- "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION") \
+    && wget -q "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip" \
+    && unzip chromedriver_linux64.zip -d /usr/local/bin/ \
+    && rm chromedriver_linux64.zip \
     && chmod +x /usr/local/bin/chromedriver
 
-# Copy only requirements first
+# Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies with build caching
+# Install Python dependencies with exact versions
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
-COPY . .
-
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
+# Set Docker environment variable
 ENV DOCKER_ENV=true
 
-# Expose the port
+# Copy application code
+COPY . .
+
+# Expose port
 EXPOSE 5000
 
-# Command to run application
+# Run the application
 CMD ["python", "app.py"]
